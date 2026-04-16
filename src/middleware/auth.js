@@ -1,0 +1,51 @@
+const jwt = require('jsonwebtoken');
+const axios = require('axios');
+
+let publicKey = null;
+
+/**
+ * Fetches the JWT public key from the AuthService on startup.
+ * Retries up to `retries` times with `delayMs` between attempts.
+ */
+async function initPublicKey(retries = 5, delayMs = 3000) {
+  const url = `${process.env.AUTH_SERVICE_URL}/jwt/public-key`;
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await axios.get(url);
+      // Accept either a raw PEM string or { publicKey: "..." }
+      publicKey =
+        typeof response.data === 'string' ? response.data : response.data.publicKey;
+      console.log('JWT public key loaded from AuthService');
+      return;
+    } catch (err) {
+      console.warn(`[auth] Attempt ${attempt}/${retries} to fetch public key failed: ${err.message}`);
+      if (attempt < retries) {
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+    }
+  }
+
+  throw new Error('Could not fetch JWT public key from AuthService after all retries');
+}
+
+/**
+ * Express middleware – verifies the Bearer JWT and attaches the decoded
+ * payload as req.user.
+ */
+function authenticate(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing or malformed Authorization header' });
+  }
+
+  const token = authHeader.slice(7);
+  try {
+    req.user = jwt.verify(token, publicKey, { algorithms: ['RS256'] });
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired token' });
+  }
+}
+
+module.exports = { initPublicKey, authenticate };
