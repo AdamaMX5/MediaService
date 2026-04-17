@@ -23,6 +23,20 @@ app.use(cors({
 
 app.use(express.json());
 
+app.get('/', (req, res) => {
+  res.json({ message: "Hello World! I'm the MediaService." });
+});
+
+app.get('/health', async (req, res) => {
+  try {
+    const Media = require('./models/Media');
+    const totalFiles = await Media.countDocuments();
+    res.json({ status: 'ok', service: 'MediaService', totalFiles });
+  } catch {
+    res.status(503).json({ status: 'error', service: 'MediaService' });
+  }
+});
+
 app.use('/upload', require('./routes/upload'));
 app.use('/files', require('./routes/files'));
 app.use('/media', require('./routes/media'));

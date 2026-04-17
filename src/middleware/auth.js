@@ -35,8 +35,11 @@ async function initPublicKey(retries = 5, delayMs = 3000) {
  */
 function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Missing or malformed Authorization header' });
+  if (!authHeader) {
+    return res.status(401).json({ error: 'Missing Authorization header' });
+  }
+  if (!authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Malformed Authorization header — expected: Bearer <token>' });
   }
 
   const token = authHeader.slice(7);
