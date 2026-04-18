@@ -14,9 +14,11 @@ async function initPublicKey(retries = 5, delayMs = 3000) {
     try {
       const response = await axios.get(url);
       console.log('[auth] AuthService response:', JSON.stringify(response.data));
-      // Accept either a raw PEM string or { publicKey: "..." }
+      // Accept either a raw PEM string or { public_key: "..." } / { publicKey: "..." }
       const key =
-        typeof response.data === 'string' ? response.data : response.data.publicKey;
+        typeof response.data === 'string'
+          ? response.data
+          : (response.data.public_key || response.data.publicKey);
       if (!key) {
         throw new Error(`Unexpected response format from AuthService: ${JSON.stringify(response.data)}`);
       }
