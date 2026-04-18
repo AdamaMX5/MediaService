@@ -13,9 +13,14 @@ async function initPublicKey(retries = 5, delayMs = 3000) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const response = await axios.get(url);
+      console.log('[auth] AuthService response:', JSON.stringify(response.data));
       // Accept either a raw PEM string or { publicKey: "..." }
-      publicKey =
+      const key =
         typeof response.data === 'string' ? response.data : response.data.publicKey;
+      if (!key) {
+        throw new Error(`Unexpected response format from AuthService: ${JSON.stringify(response.data)}`);
+      }
+      publicKey = key;
       console.log('JWT public key loaded from AuthService');
       return;
     } catch (err) {
@@ -42,11 +47,17 @@ function authenticate(req, res, next) {
     return res.status(401).json({ error: 'Malformed Authorization header — expected: Bearer <token>' });
   }
 
+  if (!publicKey) {
+    console.error('[auth] Public key not loaded — cannot verify JWT');
+    return res.status(500).json({ error: 'Auth service unavailable' });
+  }
+
   const token = authHeader.slice(7);
   try {
     req.user = jwt.verify(token, publicKey, { algorithms: ['RS256'] });
     next();
-  } catch {
+  } catch (err) {
+    console.error('[auth] JWT verification failed:', err.message);
     res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
