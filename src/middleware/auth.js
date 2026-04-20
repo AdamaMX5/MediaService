@@ -4,6 +4,30 @@ const axios = require('axios');
 let publicKey = null;
 
 /**
+ * Formats a PEM key by ensuring proper line breaks.
+ */
+function formatPemKey(key) {
+  if (!key) return key;
+  
+  // Add line breaks after BEGIN and before END
+  let formatted = key.replace('-----BEGIN PUBLIC KEY-----', '-----BEGIN PUBLIC KEY-----\n');
+  formatted = formatted.replace('-----END PUBLIC KEY-----', '\n-----END PUBLIC KEY-----');
+  
+  // Find the key content between BEGIN and END
+  const beginIndex = formatted.indexOf('\n') + 1;
+  const endIndex = formatted.lastIndexOf('\n');
+  const keyContent = formatted.substring(beginIndex, endIndex).replace(/\s+/g, '');
+  
+  // Add line breaks every 64 characters
+  const lines = [];
+  for (let i = 0; i < keyContent.length; i += 64) {
+    lines.push(keyContent.substring(i, i + 64));
+  }
+  
+  return `-----BEGIN PUBLIC KEY-----\n${lines.join('\n')}\n-----END PUBLIC KEY-----`;
+}
+
+/**
  * Fetches the JWT public key from the AuthService on startup.
  * Retries up to `retries` times with `delayMs` between attempts.
  */
@@ -22,7 +46,7 @@ async function initPublicKey(retries = 5, delayMs = 3000) {
       if (!key) {
         throw new Error(`Unexpected response format from AuthService: ${JSON.stringify(response.data)}`);
       }
-      publicKey = key;
+      publicKey = formatPemKey(key);
       console.log('JWT public key loaded from AuthService');
       return;
     } catch (err) {
