@@ -9,6 +9,7 @@ const mediaSchema = new mongoose.Schema({
   description:      { type: String, default: '' },
   mimetype:         { type: String, required: true },
   size:             { type: Number, required: true },    // bytes
+  hash:             { type: String, required: true },    // sha256 of file content, for dedup within app_name
   uploaded_by:      { type: String, required: true },    // user id from JWT
   uploaded_by_email:{ type: String, default: '' },
   url:              { type: String, required: true },    // public GET URL
@@ -18,5 +19,9 @@ const mediaSchema = new mongoose.Schema({
 
 // Compound index for path-based lookups
 mediaSchema.index({ app_name: 1, folder: 1 });
+
+// Dedup index: one hash per app_name (the storage prefix) — enforces uniqueness
+// even under concurrent uploads of the same file, not just at the application level.
+mediaSchema.index({ app_name: 1, hash: 1 }, { unique: true });
 
 module.exports = mongoose.model('Media', mediaSchema);
